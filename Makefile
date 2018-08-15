@@ -8,6 +8,13 @@ FDPS_LOC = ../fdps/fdps/
 FDPS_INC = -I$(FDPS_LOC)/src 
 FDPS_FTN_MOD_DIR = $(FDPS_LOC)/src/fortran_interface/modules
 FDPS_FTN_IF_GENERATOR = $(FDPS_LOC)/scripts/gen_ftn_if.py
+EXPORTSRCS = FDPS_super_particle.cr\
+             Makefile\
+             user_defined.cr\
+             FDPS_vector.cr\
+             README.md\
+             crmain.cr
+EXPORTDIR = export
 
 # (ii) Variables to specify compilers and compile options
 # Serial or OpenMP cases
@@ -94,4 +101,7 @@ CROBJS = FDPS_time_profile.o FDPS_matrix.o FDPS_vector.o FDPS_super_particle.o u
 CRLIBS = libcrmain.so
 fdpscr:  $(CROBJS) $(CRLIBS)
 	g++ $(CROBJS)  -O3 -ffast-math -funroll-loops -I../fdps/fdps//src  -o fdpscr -L. -lcrmain -lgfortran 
+
+EXPORT : $(EXPORTSRCS)
+	cp -p $(EXPORTSRCS) $(EXPORTDIR)
 

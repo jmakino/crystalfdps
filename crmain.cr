@@ -61,6 +61,7 @@ fun fdps_calc_force_all_and_write_back_l00000(tree_num : Int32,
                                             clear : Bool,
                                             list_mode : Int32)
 fun  get_nptcl_loc=fdps_get_nptcl_loc(psys_num : Int32)  : Int32
+fun  get_sum_f64 = fdps_get_sum_r64(lv : Float64, gv : Float64*) : Void 
 end
 end
 
@@ -159,37 +160,57 @@ def calc_force_all_and_write_back(tree_num,
 end
 
 
-def calc_energy(psys_num,etot,ekin,epot,clear)
-  if clear 
-      etot = 0_f64
-      ekin = 0_f64
-      epot = 0_f64
-   end
-
+def calc_energy(psys_num)
+  etot = 0_f64
+  ekin = 0_f64
+  epot = 0_f64
    # Get # of local particles
   nptcl_loc = FDPS.get_nptcl_loc(psys_num)
   dummy = FDPS::Full_particle.new
   ptcl = pointerof(dummy)
-  FDPS.get_psys_cptr(psys_num,ptcl)
+  FDPS.get_psys_cptr(psys_num,pointerof(ptcl))
   
   ekin_loc = 0_f64
   epot_loc = 0_f64
   nptcl_loc.times{|i|
     pi = (ptcl+i).value
-    ekin_loc += pi.mass * (pi.vel * pi.vel)
+#    p pi
+    v = Vec_Float64.new(pi.vel)
+    ekin_loc += pi.mass * (v*v)
     epot_loc += pi.mass * (pi.pot + pi.mass/pi.eps)
+#    p pi.pot
   }
    ekin_loc *= 0.5_f64
    epot_loc *= 0.5_f64
+#   p epot_loc
+#   p ekin_loc
    etot_loc = ekin_loc + epot_loc
-   call fdps_ctrl%get_sum(ekin_loc,ekin)
-   call fdps_ctrl%get_sum(epot_loc,epot)
-   call fdps_ctrl%get_sum(etot_loc,etot)
+   FDPS.get_sum_f64(ekin_loc,pointerof(ekin))
+   FDPS.get_sum_f64(epot_loc,pointerof(epot))
+   FDPS.get_sum_f64(etot_loc,pointerof(etot))
+   [etot,ekin,epot]
+end
 
-   !* Release the pointer
-   nullify(ptcl)
-
-end subroutine calc_energy
+def kick(psys_num,dt)
+  dummy = FDPS::Full_particle.new
+  ptcl = pointerof(dummy)
+  FDPS.get_psys_cptr(psys_num,pointerof(ptcl))
+  FDPS.get_nptcl_loc(psys_num).times{|i|
+    q = ptcl+i
+    q.value.vel = Vec_Float64.new(q.value.vel) +
+                  Vec_Float64.new(q.value.acc)* dt
+  }
+end
+def drift(psys_num,dt)
+  dummy = FDPS::Full_particle.new
+  ptcl = pointerof(dummy)
+  FDPS.get_psys_cptr(psys_num,pointerof(ptcl))
+  FDPS.get_nptcl_loc(psys_num).times{|i|
+    q = ptcl+i
+    q.value.pos = Vec_Float64.new(q.value.pos) +
+                  Vec_Float64.new(q.value.vel)* dt
+  }
+end
 
 def crbody
   STDERR.print "FDPS on Crystal test code\n"
@@ -239,73 +260,49 @@ def crbody
    calc_force_all_and_write_back(tree_num, ppf,psf,
                                       psys_num,  
                                       dinfo_num)
-   p "after force calculation\n"
-   dump_particles(psys_num)
+#   p "after force calculation\n"
+#   dump_particles(psys_num)
    # !* Compute energies at the initial time
-   clear = true
-   calc_energy(fdps_ctrl,psys_num,etot0,ekin0,epot0,clear)
-
+   etot0,ekin0,epot0 = calc_energy(psys_num)
+   print "Energies = ", [etot0,ekin0,epot0].map{|x| x.to_s}.join(" "), "\n"
    # !* Time integration
-   # time_diag = 0.0d0
-   # time_snap = 0.0d0
-   # time_sys  = 0.0d0
-   # num_loop = 0
-   # do 
-   #    !* Output
-   #   !if (FDPS.get_rank() == 0) then
-   #   !   write(*,50)num_loop,time_sys
-   #   !   50 format('(num_loop, time_sys) = ',i5,1x,1es25.16e3)
-   #   !end if
-   #    if ( (time_sys >= time_snap) .or. &
-   #         (((time_sys + dt) - time_snap) > (time_snap - time_sys)) ) then
-   #       call output(fdps_ctrl,psys_num)
-   #       time_snap = time_snap + dt_snap
-   #    end if
-      
-   #    !* Compute energies and output the results
-   #    clear = .true.
-   #    call calc_energy(fdps_ctrl,psys_num,etot1,ekin1,epot1,clear)
-   #    if (FDPS.get_rank() == 0) then
-   #       if ( (time_sys >= time_diag) .or. &
-   #            (((time_sys + dt) - time_diag) > (time_diag - time_sys)) ) then
-   #          write(*,100)time_sys,(etot1-etot0)/etot0
-   #          100 format("time: ",1es20.10e3,", energy error: ",1es20.10e3)
-   #          time_diag = time_diag + dt_diag
-   #       end if
-   #    end if
-
-   #    !* Leapfrog: Kick-Drift
-   #    call kick(fdps_ctrl,psys_num,0.5d0*dt)
-   #    time_sys = time_sys + dt
-   #    call drift(fdps_ctrl,psys_num,dt)
-
-   #    !* Domain decomposition & exchange particle
-   #    if (mod(num_loop,4) == 0) then
-   #       FDPS.decompose_domain_all(dinfo_num,psys_num)
-   #    end if
-   #    FDPS.exchange_particle(psys_num,dinfo_num)
-
-   #    !* Force calculation
-   #    pfunc_ep_ep = c_funloc(calc_gravity_pp)
-   #    pfunc_ep_sp = c_funloc(calc_gravity_psp)
-   #    FDPS.calc_force_all_and_write_back(tree_num,    &
-   #                                                 pfunc_ep_ep, &
-   #                                                 pfunc_ep_sp, &
-   #                                                 psys_num,    &
-   #                                                 dinfo_num)
-   #    !* Leapfrog: Kick
-   #    call kick(fdps_ctrl,psys_num,0.5d0*dt)
-
-   #    !* Update num_loop
-   #    num_loop = num_loop + 1
-
-   #    !* Termination
-   #    if (time_sys >= time_end) then
-   #       exit
-   #    end if
-   # end do
-
-
-  FDPS.PS_Finalize()
+   time_diag = 0_f64
+   time_snap = 0_f64
+   time_sys  = 0_f64
+   time_end = 10.0_f64
+   dt = 1.0_f64/128.0_f64
+   dt_diag = 1.0_f64/8.0_f64
+   dt_snap = 1.0_f64
+   num_loop = 0
+   while time_sys <= time_end
+     if time_sys + dt/2 >= time_snap
+       #       output(psys_num)
+       time_snap += dt_snap
+     end
+     
+     etot1,ekin1,epot1 = calc_energy(psys_num)
+     if FDPS.get_rank() == 0
+       if time_sys + dt/2 >= time_diag
+         print "time: #{time_sys}, energy error: #{(etot1-etot0)/etot0}\n"
+         time_diag = time_diag + dt_diag
+       end
+     end
+     kick(psys_num,0.5_f64*dt)
+     time_sys +=  dt
+     drift(psys_num,dt)
+     #    !* Domain decomposition & exchange particle
+     if num_loop%4 == 0
+       FDPS.decompose_domain_all(dinfo_num,psys_num,1)
+     end
+     FDPS.exchange_particle(psys_num,dinfo_num)
+     #    !* Force calculation
+     
+     calc_force_all_and_write_back(tree_num, ppf,psf,
+                                   psys_num,  
+                                   dinfo_num)
+     kick(psys_num,0.5_f64*dt)
+     num_loop += 1
+   end
+   FDPS.PS_Finalize()
 end
 

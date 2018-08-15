@@ -37,10 +37,10 @@ def calc_gravity(ep_i,n_ip,ep_j,n_jp,f)
       mrinv = pj.mass*rinv
       mr3inv = mrinv*rinv*rinv
       ai -= rij*mr3inv
-      poti -= mrinv
+      poti = poti - mrinv
     }
     pfi = (f+i)
-    pfi.value.pot +=  poti
+    pfi.value.pot =  pfi.value.pot + poti
     pfi.value.acc =   Vec_Float64.new(pfi.value.acc)+ ai
   }
 end
