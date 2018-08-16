@@ -6,7 +6,7 @@ require "./user_defined"
 
 
 fun init = crystal_init : Void
-#  GC.init
+  GC.init
   STDERR.print "Crystal initialization end\n"
 end
 
@@ -217,11 +217,10 @@ def crbody
   FDPS.PS_Initialize()
   dinfo_num : Int32 =1
   coef_ema : Float32 =0.3
-
+  GC.disable
   FDPS.create_dinfo(pointerof(dinfo_num))
   p dinfo_num
   FDPS.init_dinfo(dinfo_num,coef_ema)
-
   psys_num : Int32 = 0
   FDPS.create_psys(pointerof(psys_num),"full_particle")
   FDPS.init_psys(psys_num)
@@ -230,18 +229,19 @@ def crbody
   tree_num = 0
   FDPS.create_tree(pointerof(tree_num), 
                    "Long,full_particle,full_particle,full_particle,Monopole")
-  ntot=1024
+  ntot=128
   theta = 0.5
    n_leaf_limit = 8
    n_group_limit = 64
   FDPS.init_tree(tree_num,ntot, theta, n_leaf_limit, n_group_limit)
+  GC.enable
 
    # !* Make an initial condition
    setup_IC(psys_num,ntot)
+  GC.disable
    # !* Domain decomposition and exchange particle
    FDPS.decompose_domain_all(dinfo_num,psys_num,1)
    FDPS.exchange_particle(psys_num,dinfo_num)
-
    # !* Compute force at the initial time
    ppf = ->(ep_i : Pointer(FDPS::Full_particle),
                     n_ip : Int32,
@@ -260,6 +260,7 @@ def crbody
    calc_force_all_and_write_back(tree_num, ppf,psf,
                                       psys_num,  
                                       dinfo_num)
+  GC.enable
 #   p "after force calculation\n"
 #   dump_particles(psys_num)
    # !* Compute energies at the initial time
@@ -290,6 +291,7 @@ def crbody
      kick(psys_num,0.5_f64*dt)
      time_sys +=  dt
      drift(psys_num,dt)
+  GC.disable
      #    !* Domain decomposition & exchange particle
      if num_loop%4 == 0
        FDPS.decompose_domain_all(dinfo_num,psys_num,1)
@@ -300,9 +302,12 @@ def crbody
      calc_force_all_and_write_back(tree_num, ppf,psf,
                                    psys_num,  
                                    dinfo_num)
+  GC.enable
      kick(psys_num,0.5_f64*dt)
      num_loop += 1
    end
+  GC.disable
    FDPS.PS_Finalize()
+  GC.enable
 end
 

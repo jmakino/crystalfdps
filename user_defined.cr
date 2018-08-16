@@ -8,9 +8,9 @@ lib FDPS
       #!fdps copyFromFP full_particle (id,id) (mass,mass) (eps,eps) (pos,pos) 
       #!fdps clear id=keep, mass=keep, eps=keep, pos=keep, vel=keep
       id : Int64 
-      mass : Float64
+      mass : Float64     #$fdps charge
       eps : Float64
-      pos : FDPS::Cvec_Float64 #!fdps position
+      pos : Cvec_Float64 #!fdps position
       vel : Cvec_Float64 #!fdps velocity
       pot : Float64
       acc : Cvec_Float64 
