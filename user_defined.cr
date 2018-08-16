@@ -21,7 +21,6 @@ end
 #   !**** Interaction function (particle-particle)
 include Math
 def calc_gravity(ep_i,n_ip,ep_j,n_jp,f)
-  STDERR.print "in calc gravity ni=#{n_ip}  nj=#{n_jp} \n"
   n_ip.times{|i|
     pi = (ep_i + i).value
     eps2 = pi.eps*pi.eps

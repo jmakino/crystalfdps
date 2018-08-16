@@ -6,7 +6,7 @@ require "./user_defined"
 
 
 fun init = crystal_init : Void
-  GC.init
+#  GC.init
   STDERR.print "Crystal initialization end\n"
 end
 
@@ -230,7 +230,7 @@ def crbody
   tree_num = 0
   FDPS.create_tree(pointerof(tree_num), 
                    "Long,full_particle,full_particle,full_particle,Monopole")
-  ntot=16
+  ntot=1024
   theta = 0.5
    n_leaf_limit = 8
    n_group_limit = 64
@@ -271,7 +271,7 @@ def crbody
    time_sys  = 0_f64
    time_end = 10.0_f64
    dt = 1.0_f64/128.0_f64
-   dt_diag = 1.0_f64/8.0_f64
+   dt_diag = 1.0_f64
    dt_snap = 1.0_f64
    num_loop = 0
    while time_sys <= time_end

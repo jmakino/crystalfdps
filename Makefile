@@ -94,13 +94,13 @@ distclean: clean
 
 # fdps-autotest-run (DO NOT CHANGE THIS LINE)
 
-libcrmain.so: crmain.cr user_defined.cr
-	crystal build crmain.cr --single-module --link-flags="-shared" -o libcrmain.so
+libcrmain.so: crmain.cr user_defined.cr Makefile
+	crystal build --threads 1  crmain.cr --single-module --link-flags="-shared" -o libcrmain.so
 
 CROBJS = FDPS_time_profile.o FDPS_matrix.o FDPS_vector.o FDPS_super_particle.o user_defined.o FDPS_module.o f_main.o FDPS_ftn_if.o FDPS_Manipulators.o main.o
 CRLIBS = libcrmain.so
-fdpscr:  $(CROBJS) $(CRLIBS)
-	g++ $(CROBJS)  -O3 -ffast-math -funroll-loops -I../fdps/fdps//src  -o fdpscr -L. -lcrmain -lgfortran 
+fdpscr:  $(CROBJS) $(CRLIBS) Makefile
+	g++ $(CROBJS)  -fopenmp -O3 -ffast-math -funroll-loops -I../fdps/fdps//src  -o fdpscr -L. -lcrmain -lgfortran 
 
 EXPORT : $(EXPORTSRCS)
 	cp -p $(EXPORTSRCS) $(EXPORTDIR)
