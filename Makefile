@@ -14,6 +14,8 @@ EXPORTSRCS = FDPS_super_particle.cr\
              FDPS_vector.cr\
              README.md\
              convert_crystal_struct_to_f90.rb\
+             convert_f90_struct_to_crystal.rb\
+             convert_f90_if_to_crystal.rb\
              crmain.cr
 EXPORTDIR = export
 
@@ -97,15 +99,20 @@ distclean: clean
 
 # fdps-autotest-run (DO NOT CHANGE THIS LINE)
 
-libcrmain.so: crmain.cr user_defined.cr Makefile
+FDPS_cr_if.cr:   FDPS_ftn_if.cpp  convert_f90_if_to_crystal.rb
+	ruby convert_f90_if_to_crystal.rb FDPS_ftn_if.cpp > FDPS_cr_if.cr
+FDPS_types.cr:   FDPS_time_profile.F90 FDPS_super_particle.F90 convert_f90_struct_to_crystal.rb
+	cpp -E FDPS_super_particle.F90 .ftmp.F90
+	cat .ftmp.F90  FDPS_time_profile.F90| ruby  convert_f90_struct_to_crystal.rb> FDPS_types.cr
+libcrmain.so: crmain.cr user_defined.cr FDPS_cr_if.cr Makefile
 	crystal build --release --threads 1  crmain.cr --single-module --link-flags="-shared" -o libcrmain.so
 
-CROBJS = FDPS_time_profile.o FDPS_matrix.o FDPS_vector.o FDPS_super_particle.o user_defined.o FDPS_module.o  FDPS_ftn_if.o FDPS_Manipulators.o crmain.o
+CROBJS =   FDPS_ftn_if.o FDPS_Manipulators.o crmain.o
 CRLIBS = libcrmain.so
 fdpscr:  $(CROBJS) $(CRLIBS) Makefile
-	g++ $(CROBJS)  -fopenmp -O3 -ffast-math -funroll-loops -I../fdps/fdps//src  -o fdpscr -L. -lcrmain -lgfortran 
+	g++ $(CROBJS)  -fopenmp -O3 -ffast-math -funroll-loops -I../fdps/fdps//src  -o fdpscr -L. -lcrmain 
 
-expdir : $(EXPORTSRCS)
+exports : $(EXPORTSRCS)
 	cp -p $(EXPORTSRCS) $(EXPORTDIR)
 
 git :

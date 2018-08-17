@@ -10,6 +10,28 @@ lib FDPS
     y : {{etype}}
     {% if ndim == 3 %} z : {{etype}} {% end %}
   end
+  struct Cvec_F32
+    x : Float32
+    y : Float32
+    {% if ndim == 3 %} z : Float32 {% end %}
+  end
+  struct Cmat_F32
+    xx : Float32
+    yy : Float32
+    {% if ndim == 3 %} zz : Float32 {% end %}
+    xy : Float32
+    {% if ndim == 3 %} xz : Float32
+    yz : Float32{% end %}
+  end
+  struct Cmat_F64
+    xx : Float64
+    yy : Float64
+    {% if ndim == 3 %} zz : Float64 {% end %}
+    xy : Float64
+    {% if ndim == 3 %} xz : Float64
+    yz : Float64{% end %}
+  end
+
   struct Testp
          pos : FDPS::Cvec_{{etype}}
   end

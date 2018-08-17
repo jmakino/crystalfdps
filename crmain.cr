@@ -1,7 +1,8 @@
 require "./FDPS_vector"
 use_fdps_vector(3,Float64)
 include FDPS_vector
-require "./FDPS_super_particle"
+#require "./FDPS_super_particle"
+require "./FDPS_types"
 require "./user_defined"
 
 
@@ -14,57 +15,31 @@ lib C
   fun cos(value : Float64) : Float64
 end
 module FDPS_vector
-lib FDPS
-fun PS_Initialize  = fdps_initialize : Void
-fun PS_Finalize  = fdps_finalize : Void
-fun create_dinfo = fdps_create_dinfo(id : Pointer(Int32)) : Void
-fun init_dinfo = fdps_init_dinfo(dinfo_num : Int32,
-                                 coef_ema : Float32) : Void
-fun create_psys = fdps_create_psys(psys_num : Int32*,
-                      psys_info: UInt8*) : Void
-fun init_psys = fdps_init_psys(psys_num : Int32) : Void
-fun create_tree = fdps_create_tree(tree_num : Int32*,
-                      tree_info : UInt8*) : Void
-fun init_tree =  fdps_init_tree(tree_num : Int32,
-                    nptcl : Int32,
-                    theta : Float32,
-                    n_leaf_limit : Int32,
-                                n_group_limit : Int32) : Void
-fun get_num_procs = fdps_get_num_procs : Int32
-fun get_rank = fdps_get_rank : Int32
-fun set_nptcl_loc = fdps_set_nptcl_loc(psys_num : Int32, nptcl: Int32) : Void
+  lib FDPS
+
+   enum PS_BOUNDARY_CONDITION 
+      BC_OPEN
+      BC_PERIODIC_X
+      BC_PERIODIC_Y
+      BC_PERIODIC_Z
+      BC_PERIODIC_XY
+      BC_PERIODIC_XZ
+      BC_PERIODIC_YZ
+      BC_PERIODIC_XYZ
+      BC_SHEARING_BOX
+      BC_USER_DEFINED
+   end
+
+enum PS_INTERACTION_LIST_MODE
+  MAKE_LIST
+  MAKE_LIST_FOR_REUSE
+  REUSE_LIST
+end
 fun get_psys_cptr = fdps_get_psys_cptr(psys_num : Int32,
                                        cptr:  (Full_particle)**) : Void
-fun MT_init_genrand = fdps_mt_init_genrand(s : Int32) : Void
-fun MT_genrand_res53= fdps_mt_genrand_res53 : Float64
-fun decompose_domain_all=fdps_decompose_domain_all(dinfo_num : Int32,
-                                                   psys_num : Int32,
-                                       weight : Float32) : Void
-fun exchange_particle = fdps_exchange_particle(psys_num : Int32, 
-                                               dinfo_num : Int32) : Void
-
-fun fdps_calc_force_all_and_write_back_l00000(tree_num : Int32,
-                                            pfunc_ep_ep :
-                                              Pointer(FDPS::Full_particle),
-                                              Int32,
-                                              Pointer(FDPS::Full_particle),
-                                              Int32,
-                                           Pointer(FDPS::Full_particle) -> Void,
-                                            pfunc_ep_sp :
-                                              Pointer(FDPS::Full_particle),
-                                              Int32,
-                                              Pointer(FDPS::Spj_monopole),
-                                              Int32,
-                                           Pointer(FDPS::Full_particle) -> Void,
-                                           psys_num : Int32,
-                                            dinfo_num : Int32,
-                                            clear : Bool,
-                                            list_mode : Int32)
-fun  get_nptcl_loc=fdps_get_nptcl_loc(psys_num : Int32)  : Int32
-fun  get_sum_f64 = fdps_get_sum_r64(lv : Float64, gv : Float64*) : Void 
 end
 end
-
+require "./FDPS_cr_if"
 
 fun crmain :  Void
   crbody
@@ -89,7 +64,7 @@ def  setup_IC(psys_num,nptcl_glb)
       ptcl = pointerof(dummy)
       FDPS.get_psys_cptr(psys_num,pointerof(ptcl))
       #!** initialize Mersenne twister
-      FDPS.MT_init_genrand(0)
+      FDPS.mt_init_genrand(0)
       zerov= Vec_Float64.new(0)
       nptcl_glb.times{|i|
         q = (ptcl+i)
@@ -98,7 +73,7 @@ def  setup_IC(psys_num,nptcl_glb)
         r2 = r2max*2
         while r2 >= r2max
           rv = Vec_Float64.new(Array.new(3){
-                                 (2_f64*FDPS.MT_genrand_res53()-1.0) * rmax})
+                                 (2_f64*FDPS.mt_genrand_res53()-1.0) * rmax})
           r2 = rv*rv
           q.value.pos = rv
         end
@@ -148,13 +123,13 @@ def calc_force_all_and_write_back(tree_num,
                                       dinfo_num)
 
 #  p "call   FDPS.fdps_calc_force_and_write_back_l00000\n"
-  FDPS.fdps_calc_force_all_and_write_back_l00000(tree_num,
+  FDPS.calc_force_all_and_write_back_l00000(tree_num,
                                              calc_gravity_pp,
                                              calc_gravity_psp,
                                              psys_num,  
                                              dinfo_num,
                                              true,
-                                             0)
+                                             FDPS::PS_INTERACTION_LIST_MODE::MAKE_LIST)
 
 #  p "return from  FDPS.fdps_calc_force_and_write_back_l00000\n"
 end
@@ -185,9 +160,9 @@ def calc_energy(psys_num)
 #   p epot_loc
 #   p ekin_loc
    etot_loc = ekin_loc + epot_loc
-   FDPS.get_sum_f64(ekin_loc,pointerof(ekin))
-   FDPS.get_sum_f64(epot_loc,pointerof(epot))
-   FDPS.get_sum_f64(etot_loc,pointerof(etot))
+   FDPS.get_sum_r64(ekin_loc,pointerof(ekin))
+   FDPS.get_sum_r64(epot_loc,pointerof(epot))
+   FDPS.get_sum_r64(etot_loc,pointerof(etot))
    [etot,ekin,epot]
 end
 
@@ -214,10 +189,9 @@ end
 
 def crbody
   STDERR.print "FDPS on Crystal test code\n"
-  FDPS.PS_Initialize()
+  FDPS.initialize()
   dinfo_num : Int32 =1
   coef_ema : Float32 =0.3
-  GC.disable
   FDPS.create_dinfo(pointerof(dinfo_num))
   p dinfo_num
   FDPS.init_dinfo(dinfo_num,coef_ema)
@@ -234,11 +208,9 @@ def crbody
    n_leaf_limit = 8
    n_group_limit = 64
   FDPS.init_tree(tree_num,ntot, theta, n_leaf_limit, n_group_limit)
-  GC.enable
 
    # !* Make an initial condition
    setup_IC(psys_num,ntot)
-  GC.disable
    # !* Domain decomposition and exchange particle
    FDPS.decompose_domain_all(dinfo_num,psys_num,1)
    FDPS.exchange_particle(psys_num,dinfo_num)
@@ -252,7 +224,7 @@ def crbody
    }
    psf = ->(ep_i : Pointer(FDPS::Full_particle),
                     n_ip : Int32,
-                    ep_j : Pointer(FDPS::Spj_monopole),
+                    ep_j : Pointer(FDPS::SPJMonopole),
                     n_jp : Int32,
             f : Pointer(FDPS::Full_particle)){
      calc_gravity(ep_i,n_ip,ep_j,n_jp,f)
@@ -260,7 +232,6 @@ def crbody
    calc_force_all_and_write_back(tree_num, ppf,psf,
                                       psys_num,  
                                       dinfo_num)
-  GC.enable
 #   p "after force calculation\n"
 #   dump_particles(psys_num)
    # !* Compute energies at the initial time
@@ -291,7 +262,6 @@ def crbody
      kick(psys_num,0.5_f64*dt)
      time_sys +=  dt
      drift(psys_num,dt)
-  GC.disable
      #    !* Domain decomposition & exchange particle
      if num_loop%4 == 0
        FDPS.decompose_domain_all(dinfo_num,psys_num,1)
@@ -302,12 +272,9 @@ def crbody
      calc_force_all_and_write_back(tree_num, ppf,psf,
                                    psys_num,  
                                    dinfo_num)
-  GC.enable
      kick(psys_num,0.5_f64*dt)
      num_loop += 1
    end
-  GC.disable
-   FDPS.PS_Finalize()
-  GC.enable
+   FDPS.finalize()
 end
 
