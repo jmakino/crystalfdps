@@ -1,7 +1,6 @@
 require "./FDPS_vector"
 use_fdps_vector(3,Float64)
 include FDPS_vector
-#require "./FDPS_super_particle"
 require "./FDPS_types"
 require "./user_defined"
 

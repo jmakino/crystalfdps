@@ -4,12 +4,11 @@
 # Variables that must be specified by users
 # (i) Variables related to FDPS
 #FDPS_LOC = ../../../
-FDPS_LOC = ../fdps/fdps/
+FDPS_LOC = ../../src/fdps/fdps/
 FDPS_INC = -I$(FDPS_LOC)/src 
 FDPS_FTN_MOD_DIR = $(FDPS_LOC)/src/fortran_interface/modules
 FDPS_FTN_IF_GENERATOR = $(FDPS_LOC)/scripts/gen_ftn_if.py
-EXPORTSRCS = FDPS_super_particle.cr\
-             Makefile\
+EXPORTSRCS = Makefile\
              user_defined.cr\
              FDPS_vector.cr\
              README.md\
@@ -101,10 +100,10 @@ distclean: clean
 
 FDPS_cr_if.cr:   FDPS_ftn_if.cpp  convert_f90_if_to_crystal.rb
 	ruby convert_f90_if_to_crystal.rb FDPS_ftn_if.cpp > FDPS_cr_if.cr
-FDPS_types.cr:   FDPS_time_profile.F90 FDPS_super_particle.F90 convert_f90_struct_to_crystal.rb
-	cpp -E FDPS_super_particle.F90 .ftmp.F90
-	cat .ftmp.F90  FDPS_time_profile.F90| ruby  convert_f90_struct_to_crystal.rb> FDPS_types.cr
-libcrmain.so: crmain.cr user_defined.cr FDPS_cr_if.cr Makefile
+FDPS_types.cr:   $(FDPS_FTN_MOD_DIR)/FDPS_time_profile.F90 $(FDPS_FTN_MOD_DIR)/FDPS_super_particle.F90 convert_f90_struct_to_crystal.rb
+	cpp -E $(FDPS_FTN_MOD_DIR)/FDPS_super_particle.F90 .ftmp.F90
+	cat .ftmp.F90  $(FDPS_FTN_MOD_DIR)/FDPS_time_profile.F90| ruby  convert_f90_struct_to_crystal.rb> FDPS_types.cr
+libcrmain.so: crmain.cr user_defined.cr FDPS_cr_if.cr FDPS_types.cr Makefile
 	crystal build --release --threads 1  crmain.cr --single-module --link-flags="-shared" -o libcrmain.so
 
 CROBJS =   FDPS_ftn_if.o FDPS_Manipulators.o crmain.o
