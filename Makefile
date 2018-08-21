@@ -15,7 +15,8 @@ EXPORTSRCS = Makefile\
              convert_crystal_struct_to_f90.rb\
              convert_f90_struct_to_crystal.rb\
              convert_f90_if_to_crystal.rb\
-             crmain.cr
+             crmain.cr\
+             calc_gravity.c
 EXPORTDIR = export
 
 # (ii) Variables to specify compilers and compile options
