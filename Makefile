@@ -27,7 +27,7 @@ CXX=g++
 #CXX=mpic++
 # [Option 1] w/o optimization
 #FCFLAGS = -std=f2003 -O0 -Wall
-#CXXFLAGS = -Wall -Wextra -ftrapv -fexceptions -g3 $(FDPS_INC)
+CXXFLAGS = -Wall -Wextra -ftrapv -fexceptions -g3 $(FDPS_INC)
 # [Option 2] w/ optimization 
 FCFLAGS = -std=f2003 -O3 -ffast-math -funroll-loops -finline-functions
 CXXFLAGS = -O3 -ffast-math -funroll-loops $(FDPS_INC)
@@ -98,18 +98,20 @@ distclean: clean
 
 # fdps-autotest-run (DO NOT CHANGE THIS LINE)
 
+calc_gravity.o : calc_gravity.c
+	$(CC) $(CXXFLAGS) -c calc_gravity.c
 FDPS_cr_if.cr:   FDPS_ftn_if.cpp  convert_f90_if_to_crystal.rb
 	ruby convert_f90_if_to_crystal.rb FDPS_ftn_if.cpp > FDPS_cr_if.cr
 FDPS_types.cr:   $(FDPS_FTN_MOD_DIR)/FDPS_time_profile.F90 $(FDPS_FTN_MOD_DIR)/FDPS_super_particle.F90 convert_f90_struct_to_crystal.rb
 	cpp -E $(FDPS_FTN_MOD_DIR)/FDPS_super_particle.F90 .ftmp.F90
 	cat .ftmp.F90  $(FDPS_FTN_MOD_DIR)/FDPS_time_profile.F90| ruby  convert_f90_struct_to_crystal.rb> FDPS_types.cr
-libcrmain.so: crmain.cr user_defined.cr FDPS_cr_if.cr FDPS_types.cr Makefile
+libcrmain.so: crmain.cr user_defined.cr FDPS_vector.cr FDPS_cr_if.cr FDPS_types.cr Makefile
 	crystal build --release --threads 1  crmain.cr --single-module --link-flags="-shared" -o libcrmain.so
 
-CROBJS =   FDPS_ftn_if.o FDPS_Manipulators.o crmain.o
+CROBJS =   FDPS_ftn_if.o FDPS_Manipulators.o crmain.o calc_gravity.o
 CRLIBS = libcrmain.so
 fdpscr:  $(CROBJS) $(CRLIBS) Makefile
-	g++ $(CROBJS)  -fopenmp -O3 -ffast-math -funroll-loops -I../fdps/fdps//src  -o fdpscr -L. -lcrmain 
+	$(CXX) $(CXXFLAGS) $(CROBJS)    -o fdpscr -L. -lcrmain 
 
 exports : $(EXPORTSRCS)
 	cp -p $(EXPORTSRCS) $(EXPORTDIR)

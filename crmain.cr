@@ -11,7 +11,17 @@ fun init = crystal_init : Void
 end
 
 lib C
-  fun cos(value : Float64) : Float64
+fun cos(value : Float64) : Float64
+fun calc_gravity_c_epep(Pointer(FDPS::Full_particle),
+                    n_ip : Int32,
+                    ep_j : Pointer(FDPS::Full_particle),
+                    n_jp : Int32,
+                        f : Pointer(FDPS::Full_particle)) : Void
+fun calc_gravity_c_epsp(Pointer(FDPS::Full_particle),
+                        n_ip : Int32,
+                        ep_j : Pointer(FDPS::SPJMonopole),
+                        n_jp : Int32,
+                        f : Pointer(FDPS::Full_particle)) : Void
 end
 module FDPS_vector
   lib FDPS
@@ -44,6 +54,12 @@ fun crmain :  Void
   crbody
 end
 
+def return_psys_cptr(psys_num)
+  dummy = FDPS::Full_particle.new
+  ptcl = pointerof(dummy)
+  FDPS.get_psys_cptr(psys_num,pointerof(ptcl))
+  ptcl
+end
 
 def  setup_IC(psys_num,nptcl_glb)
   # Local parameters
@@ -59,9 +75,7 @@ def  setup_IC(psys_num,nptcl_glb)
       FDPS.set_nptcl_loc(psys_num,nptcl_glb)
       #!* Create an uniform sphere of particles
       #!** get the pointer to full particle data
-      dummy = FDPS::Full_particle.new
-      ptcl = pointerof(dummy)
-      FDPS.get_psys_cptr(psys_num,pointerof(ptcl))
+      ptcl = return_psys_cptr(psys_num)
       #!** initialize Mersenne twister
       FDPS.mt_init_genrand(0)
       zerov= Vec_Float64.new(0)
@@ -106,9 +120,7 @@ def  setup_IC(psys_num,nptcl_glb)
 end
 
 def  dump_particles(psys_num)
-  dummy = FDPS::Full_particle.new
-  ptcl = pointerof(dummy)
-  FDPS.get_psys_cptr(psys_num,pointerof(ptcl))
+  ptcl = return_psys_cptr(psys_num)
   FDPS.get_nptcl_loc(psys_num).times{|i|
     pi = (ptcl+i).value
     p pi
@@ -166,9 +178,7 @@ def calc_energy(psys_num)
 end
 
 def kick(psys_num,dt)
-  dummy = FDPS::Full_particle.new
-  ptcl = pointerof(dummy)
-  FDPS.get_psys_cptr(psys_num,pointerof(ptcl))
+  ptcl = return_psys_cptr(psys_num)
   FDPS.get_nptcl_loc(psys_num).times{|i|
     q = ptcl+i
     q.value.vel = Vec_Float64.new(q.value.vel) +
@@ -176,9 +186,7 @@ def kick(psys_num,dt)
   }
 end
 def drift(psys_num,dt)
-  dummy = FDPS::Full_particle.new
-  ptcl = pointerof(dummy)
-  FDPS.get_psys_cptr(psys_num,pointerof(ptcl))
+  ptcl = return_psys_cptr(psys_num)
   FDPS.get_nptcl_loc(psys_num).times{|i|
     q = ptcl+i
     q.value.pos = Vec_Float64.new(q.value.pos) +
@@ -202,7 +210,7 @@ def crbody
   tree_num = 0
   FDPS.create_tree(pointerof(tree_num), 
                    "Long,full_particle,full_particle,full_particle,Monopole")
-  ntot=128
+  ntot=1024
   theta = 0.5
    n_leaf_limit = 8
    n_group_limit = 64
@@ -219,6 +227,7 @@ def crbody
                     ep_j : Pointer(FDPS::Full_particle),
                     n_jp : Int32,
             f : Pointer(FDPS::Full_particle)){
+#     C.calc_gravity_c_epep(ep_i,n_ip,ep_j,n_jp,f)
      calc_gravity(ep_i,n_ip,ep_j,n_jp,f)
    }
    psf = ->(ep_i : Pointer(FDPS::Full_particle),
@@ -226,8 +235,11 @@ def crbody
                     ep_j : Pointer(FDPS::SPJMonopole),
                     n_jp : Int32,
             f : Pointer(FDPS::Full_particle)){
+#     C.calc_gravity_c_epsp(ep_i,n_ip,ep_j,n_jp,f)
      calc_gravity(ep_i,n_ip,ep_j,n_jp,f)
    }
+   tprof = FDPS::TimeProfile.new
+   FDPS.clear_tree_time_prof(tree_num)
    calc_force_all_and_write_back(tree_num, ppf,psf,
                                       psys_num,  
                                       dinfo_num)
@@ -250,12 +262,13 @@ def crbody
        #       output(psys_num)
        time_snap += dt_snap
      end
-     
      etot1,ekin1,epot1 = calc_energy(psys_num)
      if FDPS.get_rank() == 0
        if time_sys + dt/2 >= time_diag
          print "time: #{time_sys}, energy error: #{(etot1-etot0)/etot0}\n"
          time_diag = time_diag + dt_diag
+         FDPS.get_tree_time_prof(tree_num,pointerof(tprof))
+#         p tprof
        end
      end
      kick(psys_num,0.5_f64*dt)
@@ -267,7 +280,6 @@ def crbody
      end
      FDPS.exchange_particle(psys_num,dinfo_num)
      #    !* Force calculation
-     
      calc_force_all_and_write_back(tree_num, ppf,psf,
                                    psys_num,  
                                    dinfo_num)

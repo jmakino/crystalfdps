@@ -32,16 +32,11 @@ lib FDPS
     yz : Float64{% end %}
   end
 
-  struct Testp
-         pos : FDPS::Cvec_{{etype}}
-  end
 end
-lib FDPS
-  struct Testp2
-         pos : FDPS::Cvec_{{etype}}
-  end
-end 
-  class Vec_{{etype}}
+
+# Here, stuct must be used instead of class,
+# since struct is allocated on stack (no malloc) and thus far faster.
+  struct Vec_{{etype}}
     property x, y {% if ndim == 3 %},  z {% end %}
     def to_unsafe
       cvec = FDPS::Cvec_{{etype}}.new
