@@ -10,4 +10,10 @@ FDPS_LOC points to reasonable place, and then try
 
    make fdpscr
 
+= TODO
 
+* enum types shuld also be generated
+
+* calling interfaces to xxxx_0000x functions shuld also be generated
+
+* get_psys_cptr  shuld also be generated
