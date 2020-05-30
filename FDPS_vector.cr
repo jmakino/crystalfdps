@@ -34,6 +34,22 @@ lib FDPS
 
 end
 
+def add(a : FDPS_vector::FDPS::Cvec_{{etype}}, b : FDPS_vector::FDPS::Cvec_{{etype}})
+  cvec = FDPS::Cvec_{{etype}}.new
+  cvec.x =  a.x +  b.x
+  cvec.y = a.y + b.y
+  {% if ndim == 3 %} cvec.z = a.z + b.z {% end %}
+  cvec
+end    
+
+  def mul(a : FDPS_vector::FDPS::Cvec_{{etype}}, b : {{etype}})
+      cvec = FDPS::Cvec_{{etype}}.new
+      cvec.x = a.x * b
+      cvec.y = a.y * b
+      {% if ndim == 3 %} cvec.z = a.z*b {% end %}
+      cvec
+  end    
+
 # Here, stuct must be used instead of class,
 # since struct is allocated on stack (no malloc) and thus far faster.
   struct Vec_{{etype}}

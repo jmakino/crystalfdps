@@ -84,11 +84,12 @@ Optionstr= <<-END
   Short name: 		-O
   Long name:		--output_file_name
   Value type:		string
+  Default value:	
   Variable name:	ofname
-  Description:		Name for the output snappshot (nacsio) file
+  Description:	Name for the output snappshot (nacsio) file
   Long description:
-   Name for the output snappshot (nacsio) file. Should handle MPI process
-   in some way but not yet.
+    Name for the output snappshot (nacsio) file. Should handle MPI process
+    in some way but not yet.
 
   Short name: 		-t
   Long name:		--duration
@@ -109,7 +110,6 @@ Optionstr= <<-END
   Description:		Output the initial snapshot
   Long description:
     If this flag is set to true, the initial snapshot will be output
-    on the standard output channel, before integration is started.
 
   Short name:		-x
   Long name:  		--extra_diagnostics
@@ -148,10 +148,6 @@ def calc_gravity(ep_i,n_ip,ep_j,n_jp,f)
     n_jp.times{|j|
       pj = (ep_j + j).value
       xj = Vec_Float64.new(pj.pos)
-#      pp! xi
-#      pp! xj
-#      pp! pi.mass
-#      pp! pj.mass
       rij = xi - xj
       r2 = rij*rij+eps2
       if r2 > 1e-20
@@ -165,16 +161,6 @@ def calc_gravity(ep_i,n_ip,ep_j,n_jp,f)
     pfi = (f+i)
     pfi.value.pot =  pfi.value.pot + poti
     pfi.value.acc =   Vec_Float64.new(pfi.value.acc)+ ai
-    if poti < -1e10
-      STDERR.print "Something strange in calc_gravity\n"
-      pp! n_ip, n_jp
-      pp! (ep_i+i).value
-      n_jp.times{|j|
-        pj = (ep_j + j).value
-        pp! pj
-      }
-      
-    end
   }
 end
 
@@ -182,23 +168,7 @@ fun init = crystal_init : Void
    GC.init
    LibCrystalMain.__crystal_main(0, Pointer(Pointer(UInt8)).null)
 end
-fun log = crystal_log(text: UInt8*): Void
-  puts String.new(text)
-end
 
-lib C
-fun cos(value : Float64) : Float64
-fun calc_gravity_c_epep(Pointer(FDPS::Full_particle),
-                    n_ip : Int32,
-                    ep_j : Pointer(FDPS::Full_particle),
-                    n_jp : Int32,
-                        f : Pointer(FDPS::Full_particle)) : Void
-fun calc_gravity_c_epsp(Pointer(FDPS::Full_particle),
-                        n_ip : Int32,
-                        ep_j : Pointer(FDPS::SPJMonopole),
-                        n_jp : Int32,
-                        f : Pointer(FDPS::Full_particle)) : Void
-end
 module FDPS_vector
   lib FDPS
 
@@ -237,7 +207,7 @@ fun crmain = crmain(argc : Int32, argv : UInt8**) :  Void
    }
    pname = av.shift
    options=CLOP.new(FLOCAL::Optionstr,av)
-  crbody(pname, av,options)
+   crbody(pname, av,options)
 end
 
 def return_psys_cptr(psys_num)
@@ -318,10 +288,6 @@ def  setup_IC(psys_num,nptcl_glb)
         q.value.eps = 0.1
       }
       
-      # nptcl_glb.times{|i|
-      #   pi = (ptcl+i).value
-      #   p pi
-      # }
       cm_pos = zerov
       cm_vel = zerov
       cm_mass = 0_f64
@@ -381,7 +347,6 @@ def calc_force_all_and_write_back(tree_num,
                                       psys_num,  
                                       dinfo_num)
 
-#  p "call   FDPS.fdps_calc_force_and_write_back_l00000\n"
   FDPS_calc.calc_force_all_and_write_back_local(tree_num,
                                              calc_gravity_pp,
                                              calc_gravity_psp,
@@ -389,10 +354,7 @@ def calc_force_all_and_write_back(tree_num,
                                              dinfo_num,
                                              true,
                                              FDPS::PS_INTERACTION_LIST_MODE::MAKE_LIST)
-
-#  p "return from  FDPS.fdps_calc_force_and_write_back_l00000\n"
 end
-
 
 def calc_energy(psys_num)
   etot = 0_f64
@@ -407,17 +369,13 @@ def calc_energy(psys_num)
   epot_loc = 0_f64
   nptcl_loc.times{|i|
     pi = (ptcl+i).value
-#    p pi
     v = Vec_Float64.new(pi.vel)
     ekin_loc += pi.mass * (v*v)
     epot_loc += pi.mass * pi.pot 
     epot_loc -= pi.mass * pi.mass/pi.eps if pi.eps != 0.0
-#    p pi.pot
   }
    ekin_loc *= 0.5_f64
    epot_loc *= 0.5_f64
-#   p epot_loc
-#   p ekin_loc
    etot_loc = ekin_loc + epot_loc
    ekin= FDPS.get_sum_f64(ekin_loc)
    epot= FDPS.get_sum_f64(epot_loc)
@@ -429,16 +387,15 @@ def kick(psys_num,dt)
   ptcl = return_psys_cptr(psys_num)
   FDPS.get_nptcl_loc(psys_num).times{|i|
     q = ptcl+i
-    q.value.vel = Vec_Float64.new(q.value.vel) +
-                  Vec_Float64.new(q.value.acc)* dt
+    q.value.vel= add(q.value.vel, mul(q.value.acc, dt))
+
   }
 end
 def drift(psys_num,dt)
   ptcl = return_psys_cptr(psys_num)
   FDPS.get_nptcl_loc(psys_num).times{|i|
     q = ptcl+i
-    q.value.pos = Vec_Float64.new(q.value.pos) +
-                  Vec_Float64.new(q.value.vel)* dt
+    q.value.pos= add(q.value.pos, mul(q.value.vel, dt))
   }
 end
 
@@ -462,11 +419,8 @@ end
 
 def crbody(pname, av,options)
   STDERR.print "FDPS on Crystal test code\n"
-  of=STDOUT
-  of=File.open(options.ofname, "w")  if options.ofname.size > 0
-  update_commandlog(pname, av,of)
-
   FDPS.initialize()
+  pp! options
   dinfo_num : Int32 =1
   coef_ema : Float32 =0.3
   FDPS.create_dinfo(pointerof(dinfo_num))
@@ -474,13 +428,16 @@ def crbody(pname, av,options)
   psys_num : Int32 = 0
   FDPS.create_psys(pointerof(psys_num),"full_particle")
   FDPS.init_psys(psys_num)
-
   #  Create tree object
   tree_num = 0
   FDPS.create_tree(pointerof(tree_num), 
                    "Long,full_particle,full_particle,full_particle,Monopole")
+
+  of=STDOUT
+  of=File.open(options.ofname, "w")  if options.ofname.size > 0
   time_sys  = 0_f64
   if options.n > 0
+    of.print CommandLog.new("treecode with internal IC",pname,av).to_nacs
     ntot=options.n
     if ntot == 2
       setup_binary(psys_num)
@@ -488,6 +445,7 @@ def crbody(pname, av,options)
       setup_IC(psys_num,ntot)
     end
   else
+    update_commandlog(pname, av,of)
     body = Array(Particle).new
     ybody = Array(YAML::Any).new
     while (sp= CP(Particle).read_particle).y != nil
@@ -502,7 +460,6 @@ def crbody(pname, av,options)
   n_group_limit = 16
   FDPS.init_tree(tree_num,ntot, options.tol, n_leaf_limit, n_group_limit)
 
-  # !* Make an initial condition
   # !* Domain decomposition and exchange particle
   FDPS.decompose_domain_all(dinfo_num,psys_num,1)
   FDPS.exchange_particle(psys_num,dinfo_num)
@@ -574,6 +531,7 @@ def crbody(pname, av,options)
      #   dump_particles(psys_num)
      num_loop += 1
    end
+   of.close if options.ofname.size > 0
    FDPS.finalize()
 end
 
