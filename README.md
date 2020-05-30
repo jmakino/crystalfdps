@@ -1,21 +1,19 @@
-This is the working directory of FDPS on Crystal project.
+# crystalfdps
 
-The current code is still more like a proof of concept but this sample
-at least can be compiled and run without relying on fortran sample code.
+A working  sample code using FDPS, writen entirely in 
+Crystal language.
 
-If you want to compile the current code, you first need to download
-FDPS. Better to test if the fortran sample works or not.  Then you
-place the source files in some directory, edit Makefile so that
-FDPS_LOC points to reasonable place, and then try
+To cmpile, after you download and place the files (either from
+zip file or by git clone), 
 
+   shards install
    make fdpscr
 
-# TODO
+should create an executable. Try
 
-* enum types shuld also be generated
+  ./fdpscr -h
 
-* calling interfaces to xxxx_0000x functions shuld also be generated
+to get the list of command-line options.
 
-* get_psys_cptr  shuld also be generated
+Edit Makefile to use OpenMP (enabled by default) and MPI
 
-* Makefile needs some cleaning up

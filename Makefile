@@ -18,15 +18,16 @@ CXX=g++
 #CXX=mpic++
 # [Option 1] w/o optimization
 #FCFLAGS = -std=f2003 -O0 -Wall
-CXXFLAGS = -Wall -Wextra -ftrapv -fexceptions -g3 $(FDPS_INC)
+#CXXFLAGS = -Wall -Wextra -ftrapv -fexceptions -g3 $(FDPS_INC)
 # [Option 2] w/ optimization 
 FCFLAGS = -std=f2003 -O3 -ffast-math -funroll-loops -finline-functions
-#CXXFLAGS = -O3 -ffast-math -funroll-loops $(FDPS_INC)
-CXXFLAGS = -g -funroll-loops $(FDPS_INC)
+CXXFLAGS = -O3 -ffast-math -funroll-loops $(FDPS_INC)
+CRFLAGS = --release
+
 LDFLAGS = -lgfortran 
 # OpenMP options
-#FCFLAGS  += -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp
-#CXXFLAGS += -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp
+FCFLAGS  += -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp
+CXXFLAGS += -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp
 # MPI options
 #FCFLAGS  += -DPARTICLE_SIMULATOR_MPI_PARALLEL
 #CXXFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
@@ -74,7 +75,7 @@ $(OBJ_USER): FDPS_c_if.h
 user_defined.h: user_defined.cr
 	ruby convert_crystal_struct_to_c.rb user_defined.cr >  user_defined.h
 libcrmainx.so: crmain.cr user_defined.cr FDPS_vector.cr FDPS_cr_if.cr FDPS_types.cr Makefile
-	crystal build  crmain.cr  --threads 1 --single-module --link-flags="-shared" -o libcrmainx.so
+	crystal build $(CRFLAGS)  crmain.cr  --threads 1 --single-module --link-flags="-shared" -o libcrmainx.so
 
 crmain.o: crmain.cpp FDPS_Manipulators.h user_defined.h
 clean:

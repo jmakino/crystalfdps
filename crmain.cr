@@ -208,6 +208,7 @@ fun crmain = crmain(argc : Int32, argv : UInt8**) :  Void
    pname = av.shift
    options=CLOP.new(FLOCAL::Optionstr,av)
    crbody(pname, av,options)
+   exit 0
 end
 
 def return_psys_cptr(psys_num)
@@ -434,10 +435,22 @@ def crbody(pname, av,options)
                    "Long,full_particle,full_particle,full_particle,Monopole")
 
   of=STDOUT
-  of=File.open(options.ofname, "w")  if options.ofname.size > 0
+  if options.ofname.size > 0
+    nprocs = FDPS.get_num_procs()
+    if nprocs > 1
+      maxdigits = nprocs.to_s.size
+      myrank = FDPS.get_rank()
+      ofname = options.ofname+"0"* (maxdigits- myrank.to_s.size)+myrank.to_s
+    else
+      ofname = options.ofname
+    end
+    of=File.open(ofname, "w")
+  end
   time_sys  = 0_f64
   if options.n > 0
-    of.print CommandLog.new("treecode with internal IC",pname,av).to_nacs
+    if FDPS.get_rank()==0
+      of.print CommandLog.new("treecode with internal IC",pname,av).to_nacs
+    end
     ntot=options.n
     if ntot == 2
       setup_binary(psys_num)
@@ -445,14 +458,17 @@ def crbody(pname, av,options)
       setup_IC(psys_num,ntot)
     end
   else
-    update_commandlog(pname, av,of)
     body = Array(Particle).new
     ybody = Array(YAML::Any).new
-    while (sp= CP(Particle).read_particle).y != nil
-      body.push sp.p
-      ybody.push sp.y
+    ntot=0
+    if FDPS.get_rank()==0
+      update_commandlog(pname, av,of)
+      while (sp= CP(Particle).read_particle).y != nil
+        body.push sp.p
+        ybody.push sp.y
+      end
+      ntot = body.size
     end
-    ntot = body.size
     time_sys = setup_IC(psys_num,ntot,body,options)
   end
     
@@ -485,11 +501,8 @@ def crbody(pname, av,options)
    calc_force_all_and_write_back(tree_num, ppf,psf,
                                       psys_num,  
                                       dinfo_num)
-   #   p "after force calculation\n"
-   #   dump_particles(psys_num)
    # !* Compute energies at the initial time
    etot0,ekin0,epot0 = calc_energy(psys_num)
-   #   pp! calc_energy(psys_num)
    # !* Time integration
    time_diag = time_sys
    time_snap = time_sys
@@ -499,13 +512,11 @@ def crbody(pname, av,options)
    dt_snap = options.dt_out
    num_loop = 0
    while time_sys <= time_end
-#     pp! time_sys
      if time_sys + dt/2 >= time_snap
        nacs_write(psys_num,time_sys,of)
        time_snap += dt_snap
      end
      etot1,ekin1,epot1 = calc_energy(psys_num)
-#     pp! calc_energy(psys_num)
      if FDPS.get_rank() == 0
        if time_sys + dt/2 >= time_diag
          STDERR.print "time: #{time_sys}, energy error: #{(etot1-etot0)/etot0}\n"
@@ -522,16 +533,12 @@ def crbody(pname, av,options)
        FDPS.decompose_domain_all(dinfo_num,psys_num,1)
      end
      FDPS.exchange_particle(psys_num,dinfo_num)
-#     pp! "calc force in loop"
-     #    !* Force calculation
      calc_force_all_and_write_back(tree_num, ppf,psf,
                                    psys_num,  
                                    dinfo_num)
      kick(psys_num,0.5_f64*dt)
-     #   dump_particles(psys_num)
      num_loop += 1
    end
    of.close if options.ofname.size > 0
    FDPS.finalize()
 end
-
