@@ -7,7 +7,7 @@ FDPS_LOC = ../fdps/FDPS/
 FDPS_INC = -I$(FDPS_LOC)/src 
 FDPS_INC += -I$(FDPS_LOC)/src/c_interface/headers
 FDPS_C_IF_GENERATOR = $(FDPS_LOC)/scripts/gen_c_if.py
-
+FDPS_FTN_MOD_DIR = $(FDPS_LOC)/src/fortran_interface/modules
 
 # (ii) Variables to specify compilers and compile options
 # Serial or OpenMP cases
@@ -58,8 +58,12 @@ FDPS_c_if.h $(SRC_CXX): $(HDR_USER_DEFINED_TYPE) Makefile
 	$(FDPS_C_IF_GENERATOR) user_defined.h --output ./
 FDPS_cr_if.cr:   FDPS_ftn_if.cpp  convert_f90_if_to_crystal.rb
 	ruby convert_f90_if_to_crystal.rb FDPS_ftn_if.cpp > FDPS_cr_if.cr
+FDPS_types.cr:   $(FDPS_FTN_MOD_DIR)/FDPS_time_profile.F90 $(FDPS_FTN_MOD_DIR)/FDPS_super_particle.F90 convert_f90_struct_to_crystal.rb
+	cpp -E $(FDPS_FTN_MOD_DIR)/FDPS_super_particle.F90 .ftmp.F90
+	cat .ftmp.F90  $(FDPS_FTN_MOD_DIR)/FDPS_time_profile.F90| ruby  convert_f90_struct_to_crystal.rb> FDPS_types.cr
 
 $(OBJ_USER): FDPS_c_if.h 
+
 
 user_defined.h: user_defined.cr
 	ruby convert_crystal_struct_to_c.rb user_defined.cr >  user_defined.h
