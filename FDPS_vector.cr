@@ -38,6 +38,10 @@ end
 # since struct is allocated on stack (no malloc) and thus far faster.
   struct Vec_{{etype}}
     property x, y {% if ndim == 3 %},  z {% end %}
+    def to_a
+       {% if ndim == 2 %}  [@x,@y]{% end %}
+       {% if ndim == 3 %}  [@x,@y,z]{% end %}
+    end
     def to_unsafe
       cvec = FDPS::Cvec_{{etype}}.new
       cvec.x = @x

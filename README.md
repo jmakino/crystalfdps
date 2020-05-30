@@ -17,3 +17,5 @@ FDPS_LOC points to reasonable place, and then try
 * calling interfaces to xxxx_0000x functions shuld also be generated
 
 * get_psys_cptr  shuld also be generated
+
+* Makefile needs some cleaning up

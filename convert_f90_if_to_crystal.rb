@@ -8,8 +8,12 @@ int           Int32
 bool          Bool
 PS::S64       Int64
 PS::S32       Int32
+PS::U32       UInt32
+PS::U64       UInt64
 PS::F32       Float32
 PS::F64       Float64
+PS::F64vec    Cvec_Float64
+PS::F32vec    Cvec_Float32
 double        Float64
 PS::TimeProfile TimeProfile
 PS::F32vec Cvec_F32
@@ -24,6 +28,11 @@ $type_conversion_hash = $type_conversion_table.split("\n").map{|s| s.split}.to_h
 
 $functions_to_skip=<<-EOF
 get_psys_cptr
+fdps_calc_force_all
+fdps_calc_force_making_tree
+fdps_calc_force_and_write_back
+fdps_sort_particle
+fdps_calc_force_all_and_write_back
 EOF
 def convert_functype(s)
   ss = $type_conversion_hash[s]
@@ -35,7 +44,7 @@ end
 
 def preprocess_single_line_def(s)
   a=[]
-  if s =~/^([a-z]\w*) fdps_(\S*)\((.*)\)/
+  if s =~/^([a-z,A-Z]\w*\:*\w*) fdps_(\S*)\((.*)\)/
     a.push $1
     a.push $2
     a += $3.split(",")
@@ -45,18 +54,21 @@ end
 
 def preprocess_funarg(a)
   b=[]
+#  print "Funargs=",a,"\n"
   s= a.shift
-#  print "Funarg[0]=",s,"\n"
   while s
-    if s =~/([a-z]\w*) \(\*/
+#    print "Funarg=",s,"\n"
+    if s =~/([a-z,A-Z]\w*\:*\w*) \(\*/
 #      print "Funarg complex type"
       ss = s
       s= a.shift
-      while s !~ /\)/ 
+      if s
+        while s !~ /\)/ 
+          ss += s
+          s= a.shift
+        end
         ss += s
-        s= a.shift
       end
-      ss += s
       s=ss
     end
     b.push s.chomp
@@ -88,23 +100,15 @@ class String
 end      
     
 def convert_function_pointers(s)
-  if s.index("(*pfunc_comp)")
-    s =~ /pfunc_comp\)\(const struct (\S+) (.*)\n(\s*) const struct (\S+)/
-    args = [$1, $4].map{|s| "FDPS::"+ s.tocap}
-    s = " pfunc_comp : Pointer(#{args[0]}), Pointer(#{args[1]}) -> Bool"
-  elsif s.index("(*pfunc_ep")
-    if  s =~/(pfunc_ep\S+)\)\(struct (\S+) .*\n\s* int ,\n\s* struct (\S+) .*\n\s*int.*\n\s* struct (\S+)/
-    args=[$1,$2,$3,$4]
-    elsif s =~/(pfunc_ep\S+)\)\(struct (\S+) .*\n\s* int ,\n\s* PS::(\S+) .*\n\s*int.*\n\s* struct (\S+)/
-      args=[$1,$2,$3,$4]
-    end
-    funname = args.shift
-    args = args.map{|s| "FDPS::"+ s.tocap}
+  if s=~/bool \(\*pfunc_comp\)/
+    s = " pfunc_comp : Pointer(Full_particle), Pointer(Full_particle) -> Bool"
+  elsif s =~/(pfunc_ep\S+)\)\(void/
+    funname = $1
     s = <<EOF
          #{funname}:
-                         Pointer(#{args[0]}), Int32,
-                         Pointer(#{args[1]}), Int32,
-                         Pointer(#{args[2]}) -> Void
+                         Pointer(Full_particle), Int32,
+                         Pointer(Full_particle), Int32,
+                         Pointer(Full_particle) -> Void
 EOF
   end
   s.chomp
@@ -113,7 +117,7 @@ end
 def convert_to_crystal_arg_def(s)
   result=""
   s.gsub!(/\*(\s+)/," *")
-  if s =~ /\n/
+  if s =~ /pfunc/
     result= convert_function_pointers(s)
   else
     a=s.split(")")[0].split(",")[0].split
@@ -126,6 +130,9 @@ def convert_to_crystal_arg_def(s)
       typename = a.join(" ")
     end
     if varname[0]=="*"
+      if varname[1]=="*"
+        varname = varname[1,varname.length-1]
+      end
       varname = varname[1,varname.length-1]
       typename = "Pointer(#{typename})"
     end
@@ -141,6 +148,7 @@ def convert_one_func(a)
     print "# function #{funname} skipped --- should be written manually\n"
     return
   end
+  print "#" + a.join("|"), "\n"
   funargs = a[2..(a.length-1)].map{|s|  convert_to_crystal_arg_def(s)}
   print "fun #{funname}=fdps_#{funname}("
   print funargs[0] if funargs.length >0
@@ -166,7 +174,7 @@ EOF
 end
 print_header
 while s=gets
-  if s =~  /^([a-z]\w*) fdps_(\S*)\(/
+  if s =~  /^([a-z,A-Z]\w*\:*\w*) fdps_(\S*)\(/
 #    p s
     a=[]
     a.push s

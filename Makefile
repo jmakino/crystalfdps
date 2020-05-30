@@ -3,21 +3,11 @@
 #-----------------------------------------------------------------------
 # Variables that must be specified by users
 # (i) Variables related to FDPS
-#FDPS_LOC = ../../../
-FDPS_LOC = ../../src/fdps/fdps/
+FDPS_LOC = ../fdps/FDPS/
 FDPS_INC = -I$(FDPS_LOC)/src 
-FDPS_FTN_MOD_DIR = $(FDPS_LOC)/src/fortran_interface/modules
-FDPS_FTN_IF_GENERATOR = $(FDPS_LOC)/scripts/gen_ftn_if.py
-EXPORTSRCS = Makefile\
-             user_defined.cr\
-             FDPS_vector.cr\
-             README.md\
-             convert_crystal_struct_to_f90.rb\
-             convert_f90_struct_to_crystal.rb\
-             convert_f90_if_to_crystal.rb\
-             crmain.cr\
-             calc_gravity.c
-EXPORTDIR = export
+FDPS_INC += -I$(FDPS_LOC)/src/c_interface/headers
+FDPS_C_IF_GENERATOR = $(FDPS_LOC)/scripts/gen_c_if.py
+
 
 # (ii) Variables to specify compilers and compile options
 # Serial or OpenMP cases
@@ -31,7 +21,8 @@ CXX=g++
 CXXFLAGS = -Wall -Wextra -ftrapv -fexceptions -g3 $(FDPS_INC)
 # [Option 2] w/ optimization 
 FCFLAGS = -std=f2003 -O3 -ffast-math -funroll-loops -finline-functions
-CXXFLAGS = -O3 -ffast-math -funroll-loops $(FDPS_INC)
+#CXXFLAGS = -O3 -ffast-math -funroll-loops $(FDPS_INC)
+CXXFLAGS = -g -funroll-loops $(FDPS_INC)
 LDFLAGS = -lgfortran 
 # OpenMP options
 #FCFLAGS  += -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp
@@ -45,74 +36,57 @@ LDFLAGS = -lgfortran
 #-----------------------------------------------------------------------
 #   Source files
 #-----------------------------------------------------------------------
-%.o : %.F90
-	$(FC) $(FCFLAGS) -c $<
+
+%.o : %.c
+	$(CC) $(CFLAGS) -c $<
 %.o : %.cpp
 	$(CXX) $(CXXFLAGS) -c $<
 
-SRC_USER_DEFINED_TYPE = user_defined.F90
-SRC_USER = f_main.F90
-SRC_FDPS_MOD = $(wildcard $(FDPS_FTN_MOD_DIR)/*.F90)
-SRC_FTN = $(SRC_FDPS_MOD) \
-	  $(SRC_USER_DEFINED_TYPE) \
-	  FDPS_module.F90 \
-	  $(SRC_USER)
+HDR_USER_DEFINED_TYPE = user_defined.h
+SRC_USER = user_defined.c \
+	   c_main.c 
 SRC_CXX = FDPS_ftn_if.cpp \
 	  FDPS_Manipulators.cpp \
-	  mainf.cpp
+	  main.cpp
 
-OBJ_USER_DEFINED_TYPE	= $(SRC_USER_DEFINED_TYPE:F90=o)
-OBJ_USER		= $(SRC_USER:F90=o)
-OBJ_FDPS_MOD		= $(notdir $(SRC_FDPS_MOD:F90=o))
-OBJ_FTN			= $(notdir $(SRC_FTN:F90=o))
-OBJ_CXX			= $(SRC_CXX:cpp=o)
-OBJ			= $(OBJ_FTN) $(OBJ_CXX)
+OBJ_USER = $(SRC_USER:c=o)
+OBJ_CXX	 = $(SRC_CXX:cpp=o)
+OBJ	 = $(OBJ_USER) $(OBJ_CXX)
 
-VPATH = $(FDPS_FTN_MOD_DIR)
-TARGET = nbody.out
 
-$(TARGET): $(OBJ) result
-	$(CXX) $(OBJ) $(CXXFLAGS) -o $(TARGET) $(LDFLAGS)
-
-result:
-	mkdir result
-
-user_defined.F90: user_defined.cr
-	ruby convert_crystal_struct_to_f90.rb  user_defined.cr > user_defined.F90
-$(SRC_CXX) FDPS_module.F90: $(SRC_USER_DEFINED_TYPE)
-	$(FDPS_FTN_IF_GENERATOR) $(SRC_USER_DEFINED_TYPE) --output ./ 
-
-FDPS_super_particle.o: FDPS_vector.o FDPS_matrix.o
-
-$(OBJ_USER_DEFINED_TYPE): $(OBJ_FDPS_MOD)
-
-FDPS_module.o: $(OBJ_USER_DEFINED_TYPE)
-
-$(OBJ_USER): $(OBJ_USER_DEFINED_TYPE) FDPS_module.o
-
-clean:
-	rm -f *.o *.s *.mod $(TARGET) *.dat
-
-distclean: clean
-	rm -f $(SRC_CXX) FDPS_Manipulators.h  FDPS_module.F90 user_defined.hpp 
-	rm -rf result
-
-# fdps-autotest-run (DO NOT CHANGE THIS LINE)
-
-calc_gravity.o : calc_gravity.c
-	$(CC) $(CXXFLAGS) -c calc_gravity.c
+FDPS_c_if.h $(SRC_CXX): $(HDR_USER_DEFINED_TYPE) Makefile
+	$(FDPS_C_IF_GENERATOR) user_defined.h --output ./
 FDPS_cr_if.cr:   FDPS_ftn_if.cpp  convert_f90_if_to_crystal.rb
 	ruby convert_f90_if_to_crystal.rb FDPS_ftn_if.cpp > FDPS_cr_if.cr
-FDPS_types.cr:   $(FDPS_FTN_MOD_DIR)/FDPS_time_profile.F90 $(FDPS_FTN_MOD_DIR)/FDPS_super_particle.F90 convert_f90_struct_to_crystal.rb
-	cpp -E $(FDPS_FTN_MOD_DIR)/FDPS_super_particle.F90 .ftmp.F90
-	cat .ftmp.F90  $(FDPS_FTN_MOD_DIR)/FDPS_time_profile.F90| ruby  convert_f90_struct_to_crystal.rb> FDPS_types.cr
-libcrmain.so: crmain.cr user_defined.cr FDPS_vector.cr FDPS_cr_if.cr FDPS_types.cr Makefile
-	crystal build --release --threads 1  crmain.cr --single-module --link-flags="-shared" -o libcrmain.so
 
-CROBJS =   FDPS_ftn_if.o FDPS_Manipulators.o crmain.o calc_gravity.o
-CRLIBS = libcrmain.so
+$(OBJ_USER): FDPS_c_if.h 
+
+user_defined.h: user_defined.cr
+	ruby convert_crystal_struct_to_c.rb user_defined.cr >user_defined.h
+libcrmainx.so: crmain.cr user_defined.cr FDPS_vector.cr FDPS_cr_if.cr FDPS_types.cr Makefile
+	crystal build  crmain.cr  --threads 1 --single-module --link-flags="-shared" -o libcrmainx.so
+
+CROBJS =   FDPS_ftn_if.o FDPS_Manipulators.o crmain.o
+CRLIBS = libcrmainx.so
+CLIBS = -levent -ldl -lpcre 
 fdpscr:  $(CROBJS) $(CRLIBS) Makefile
-	$(CXX) $(CXXFLAGS) $(CROBJS)    -o fdpscr -L. -lcrmain 
+	$(CXX) $(CXXFLAGS) $(CROBJS)    -o fdpscr -L. -lcrmainx  $(CLIBS)
+
+clean:
+	rm -f *.o *.s $(TARGET) *.dat
+
+distclean: clean
+	rm -f $(SRC_CXX) FDPS_c_if.h FDPS_Manipulators.h user_defined.hpp 
+	rm -rf result
+
+
+EXPORTDIR = export
+EXPORTSRCS = Makefile   convert_crystal_struct_to_f90.rb crmain.cr\
+             FDPS_vector.cr README.md  convert_f90_if_to_crystal.rb\
+             user_defined.cr LICENSE	convert_f90_struct_to_crystal.rb\
+             shard.yml
+
+
 
 exports : $(EXPORTSRCS)
 	cp -p $(EXPORTSRCS) $(EXPORTDIR)
