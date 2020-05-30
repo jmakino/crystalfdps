@@ -33,23 +33,18 @@ open("crmain.cpp","w"){|f|
 /* User-defined headers */
 #include "FDPS_Manipulators.h"
 extern "C"{
-void crystal_init(void);
-void crmain(void);
+    void crystal_init(void);
+    void crmain(int argc, char *argv[]);
 
 }
 int main(int argc, char *argv[])
 {
-   
    //* Initialize fdps_manip
    FDPS_Manipulators::Initialize(argc,argv);
-   //* Call Fortran main subroutine
-   //   f_main_();
    crystal_init();
-   crmain();
-   
-
+   std::cerr << "calling crmain\n";
+   crmain(argc, argv);
    return 0;
-
 }
 EOF
      }

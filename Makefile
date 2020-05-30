@@ -85,7 +85,7 @@ EXPORTSRCS = Makefile   convert_crystal_struct_to_f90.rb\
              convert_crystal_struct_to_c.rb crmain.cr\
              FDPS_vector.cr README.md  convert_f90_if_to_crystal.rb\
              user_defined.cr LICENSE	convert_f90_struct_to_crystal.rb\
-             shard.yml crmain.cpp
+             shard.yml
 
 
 
