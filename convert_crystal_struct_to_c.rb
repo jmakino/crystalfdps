@@ -42,7 +42,6 @@ int main(int argc, char *argv[])
    //* Initialize fdps_manip
    FDPS_Manipulators::Initialize(argc,argv);
    crystal_init();
-   std::cerr << "calling crmain\n";
    crmain(argc, argv);
    return 0;
 }
