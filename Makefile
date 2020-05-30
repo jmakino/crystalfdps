@@ -71,7 +71,7 @@ CRLIBS = libcrmainx.so
 CLIBS = -levent -ldl -lpcre 
 fdpscr:  $(CROBJS) $(CRLIBS) Makefile
 	$(CXX) $(CXXFLAGS) $(CROBJS)    -o fdpscr -L. -lcrmainx  $(CLIBS)
-
+crmain.o: crmain.cpp FDPS_Manipulators.h
 clean:
 	rm -f *.o *.s $(TARGET) *.dat
 
