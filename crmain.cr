@@ -81,6 +81,15 @@ Optionstr= <<-END
     A snapshot of an N-body system contains the values of the
     mass, position, and velocity for each of the N particles.
 
+  Short name: 		-O
+  Long name:		--output_file_name
+  Value type:		string
+  Variable name:	ofname
+  Description:		Name for the output snappshot (nacsio) file
+  Long description:
+   Name for the output snappshot (nacsio) file. Should handle MPI process
+   in some way but not yet.
+
   Short name: 		-t
   Long name:		--duration
   Value type:		float
@@ -228,7 +237,6 @@ fun crmain = crmain(argc : Int32, argv : UInt8**) :  Void
    }
    pname = av.shift
    options=CLOP.new(FLOCAL::Optionstr,av)
-   update_commandlog(pname, av)
   crbody(pname, av,options)
 end
 
@@ -236,7 +244,7 @@ def return_psys_cptr(psys_num)
   FDPS_calc.get_psys_cptr(psys_num)
 end
 
-def  nacs_write(psys_num,time)
+def  nacs_write(psys_num,time,of)
   # work on non-mpi only yet
   # Local parameters
   ptcl = return_psys_cptr(psys_num)
@@ -249,7 +257,7 @@ def  nacs_write(psys_num,time)
     p.mass =   q.value.mass
     p.pot =   q.value.pot
     p.time =  time
-    print p.to_nacs
+    of.print p.to_nacs
   }
 end
 
@@ -454,6 +462,10 @@ end
 
 def crbody(pname, av,options)
   STDERR.print "FDPS on Crystal test code\n"
+  of=STDOUT
+  of=File.open(options.ofname, "w")  if options.ofname.size > 0
+  update_commandlog(pname, av,of)
+
   FDPS.initialize()
   dinfo_num : Int32 =1
   coef_ema : Float32 =0.3
@@ -532,7 +544,7 @@ def crbody(pname, av,options)
    while time_sys <= time_end
 #     pp! time_sys
      if time_sys + dt/2 >= time_snap
-       nacs_write(psys_num,time_sys)
+       nacs_write(psys_num,time_sys,of)
        time_snap += dt_snap
      end
      etot1,ekin1,epot1 = calc_energy(psys_num)
