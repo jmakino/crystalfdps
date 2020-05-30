@@ -62,7 +62,7 @@ FDPS_cr_if.cr:   FDPS_ftn_if.cpp  convert_f90_if_to_crystal.rb
 $(OBJ_USER): FDPS_c_if.h 
 
 user_defined.h: user_defined.cr
-	ruby convert_crystal_struct_to_c.rb user_defined.cr >!user_defined.h
+	ruby convert_crystal_struct_to_c.rb user_defined.cr >!  user_defined.h
 libcrmainx.so: crmain.cr user_defined.cr FDPS_vector.cr FDPS_cr_if.cr FDPS_types.cr Makefile
 	crystal build  crmain.cr  --threads 1 --single-module --link-flags="-shared" -o libcrmainx.so
 
