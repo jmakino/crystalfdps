@@ -47,11 +47,17 @@ SRC_USER = user_defined.c \
 	   c_main.c 
 SRC_CXX = FDPS_ftn_if.cpp \
 	  FDPS_Manipulators.cpp \
-	  main.cpp
+	  crmain.cpp
 
 OBJ_USER = $(SRC_USER:c=o)
 OBJ_CXX	 = $(SRC_CXX:cpp=o)
 OBJ	 = $(OBJ_USER) $(OBJ_CXX)
+
+CROBJS =   FDPS_ftn_if.o FDPS_Manipulators.o crmain.o
+CRLIBS = libcrmainx.so
+CLIBS = -levent -ldl -lpcre 
+fdpscr:  $(CROBJS) $(CRLIBS) Makefile
+	$(CXX) $(CXXFLAGS) $(CROBJS)    -o fdpscr -L. -lcrmainx  $(CLIBS)
 
 
 FDPS_c_if.h $(SRC_CXX): $(HDR_USER_DEFINED_TYPE) Makefile
@@ -70,19 +76,13 @@ user_defined.h: user_defined.cr
 libcrmainx.so: crmain.cr user_defined.cr FDPS_vector.cr FDPS_cr_if.cr FDPS_types.cr Makefile
 	crystal build  crmain.cr  --threads 1 --single-module --link-flags="-shared" -o libcrmainx.so
 
-CROBJS =   FDPS_ftn_if.o FDPS_Manipulators.o crmain.o
-CRLIBS = libcrmainx.so
-CLIBS = -levent -ldl -lpcre 
-fdpscr:  $(CROBJS) $(CRLIBS) Makefile
-	$(CXX) $(CXXFLAGS) $(CROBJS)    -o fdpscr -L. -lcrmainx  $(CLIBS)
 crmain.o: crmain.cpp FDPS_Manipulators.h user_defined.h
 clean:
 	rm -f *.o *.s $(TARGET) *.dat
 
 distclean: clean
 	rm -f $(SRC_CXX) FDPS_c_if.h FDPS_Manipulators.h user_defined.hpp\
-        user_defined.h 
-	rm -rf result
+        user_defined.h FDPS_types.cr FDPS_cr_if.cr
 
 
 EXPORTDIR = export
