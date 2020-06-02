@@ -23,7 +23,7 @@ $type_conversion_hash = $type_conversion_table.split("\n").map{|s|
   a= s.split
   [a[0], a[1..(a.size-1)].join(" ")]}.to_h
 
-open("crmain.cpp","w"){|f|
+open("cppmain.cpp","w"){|f|
        f.print <<EOF
 /* Standard headers */
 #include <iostream>

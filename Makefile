@@ -54,7 +54,7 @@ OBJ_USER = $(SRC_USER:c=o)
 OBJ_CXX	 = $(SRC_CXX:cpp=o)
 OBJ	 = $(OBJ_USER) $(OBJ_CXX)
 
-CROBJS =   FDPS_ftn_if.o FDPS_Manipulators.o crmain.o
+CROBJS =   FDPS_ftn_if.o FDPS_Manipulators.o cppmain.o
 CRLIBS = libcrmainx.so
 CLIBS = -levent -ldl -lpcre 
 fdpscr:  $(CROBJS) $(CRLIBS) Makefile
@@ -76,8 +76,15 @@ user_defined.h: user_defined.cr
 	ruby convert_crystal_struct_to_c.rb user_defined.cr >  user_defined.h
 libcrmainx.so: crmain.cr user_defined.cr FDPS_vector.cr FDPS_cr_if.cr FDPS_types.cr Makefile
 	crystal build $(CRFLAGS)  crmain.cr  --threads 1 --single-module --link-flags="-shared" -o libcrmainx.so
+#crlib.o: crmain.cr user_defined.cr FDPS_vector.cr FDPS_cr_if.cr FDPS_types.cr Makefile
+#	crystal build $(CRFLAGS)  crmain.cr  --single-module --emit obj -o crlib.o
+# static link currently does not work...
 
-crmain.o: crmain.cpp FDPS_Manipulators.h user_defined.h
+cppmain.o: cppmain.cpp FDPS_Manipulators.h user_defined.h
+FDPS_ftn_if.o: FDPS_ftn_if.cpp  FDPS_Manipulators.h
+FDPS_Manipulators.o:  FDPS_Manipulators.cpp   FDPS_Manipulators.h
+cppmain.cpp: user_defined.h
+	ls -al cppmain.cpp
 clean:
 	rm -f *.o *.s $(TARGET) *.dat
 
